@@ -7,12 +7,16 @@ name = "vektor"
 version = "0.1.0"
 description = "A production-style vector database built from scratch."
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "numpy>=1.26",
+]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
 ]
 
-[tool.setuptools.packages.find]
+[
+    tool.setuptools.packages.find
+]
 where = ["src"]
