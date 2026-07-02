@@ -1,0 +1,1 @@
+"""In-memory vector storage and search. Implementation begins in Phase 4."""

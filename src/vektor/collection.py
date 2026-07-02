@@ -1,0 +1,1 @@
+"""Collection manager. Implementation begins in Phase 3."""

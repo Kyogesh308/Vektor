@@ -1,0 +1,1 @@
+"""Input validation layer. Implementation begins in Phase 1."""
