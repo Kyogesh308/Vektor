@@ -1,35 +1,4 @@
-"""Input validation layer. Implementation begins in Phase 1."""
-"""
-vektor.validator
-----------------
-Input validation for all data entering the Vektor system.
 
-Design contract:
-- Every public function either returns None (input is valid) or raises a
-  specific, named exception.
-- No function attempts to repair, transform, or coerce input.
-- Bad input is rejected immediately. It never reaches storage.
-
-import numpy as np
-import math
-
-a = np.array([1.0, float('nan'), 3.0])
-b = np.array([1.0, 2.0, 3.0])
-
-# NaN propagates silently — no error raised
-diff = a - b
-print(diff)       # [ 0.  nan  0.]
-print(np.sum(diff ** 2))   # nan — distance calculation is now poisoned
-
-# Wrong — tells the caller nothing
-raise ValueError("bad vector")
-
-# Right — tells the caller exactly what failed and why
-raise VectorDimensionError(
-    f"Expected dimension 128, got 512."
-)
-
-"""
 
 from __future__ import annotations
 
@@ -249,3 +218,36 @@ def validate_metadata(metadata: Any) -> dict:
         ) from e
 
     return metadata
+
+
+# ---------------------------------------------------------------------------
+# Metric validation
+# ---------------------------------------------------------------------------
+
+def validate_metric(metric: Any) -> str:
+    """
+    Validate a distance metric name.
+
+    Args:
+        metric: The metric name to validate.
+
+    Returns:
+        The validated metric string, unchanged.
+
+    Raises:
+        InvalidMetricError: Not a string or not in SUPPORTED_METRICS.
+    """
+    if not isinstance(metric, str):
+        raise InvalidMetricError(
+            f"Metric must be a string, got {type(metric).__name__}."
+        )
+
+    if metric not in SUPPORTED_METRICS:
+        raise InvalidMetricError(
+            f"Metric '{metric}' is not supported. "
+            f"Choose from: {sorted(SUPPORTED_METRICS)}."
+        )
+
+    return metric
+
+
