@@ -1,0 +1,5 @@
+RECORDS (fixed-width, 16 bytes each):
+  [0:8]   node_id: uint64
+  [8:16]  byte_offset_in_graph_bin: uint64
+
+Record N starts at: N × 16

@@ -1,0 +1,8 @@
+Per node record (variable-width — offsets.bin tells you where each starts):
+  [0:1]   num_layers: uint8
+  Per layer:
+    [0:2]   neighbour_count: uint16
+    [2:2+count*8]  neighbour_slot_ids: uint64 × neighbour_count
+
+Phase 5: write stub records — num_layers=0, no layer data.
+Phase 7: real adjacency lists fill this.

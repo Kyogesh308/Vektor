@@ -279,7 +279,7 @@ class TestSearch:
 
     def test_search_respects_k(self, cosine_store):
         for i in range(10):
-            cosine_store.insert(f"v{i}", [float(i), 0.0, 0.0, 0.0])
+            cosine_store.insert(f"v{i}", [float(i+1), 0.0, 0.0, 0.0])
         results = cosine_store.search([1.0, 0.0, 0.0, 0.0], k=3)
         assert len(results) == 3
 

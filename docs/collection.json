@@ -1,0 +1,9 @@
+{
+  "name": "documents",
+  "dimension": 1536,
+  "metric": "cosine",
+  "m": 16,
+  "ef_construction": 200,
+  "created_at": "2025-01-01T00:00:00Z",
+  "vektor_version": "0.2.0"
+}

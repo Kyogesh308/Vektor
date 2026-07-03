@@ -1,0 +1,12 @@
+HEADER (fixed, 24 bytes):
+  [0:4]   magic number: b'VKTR'
+  [4:8]   format version: uint32 = 1
+  [8:16]  dimension: uint64
+  [16:24] slot_count: uint64
+
+RECORDS (fixed-width, repeating):
+  [0:8]          slot_id: uint64
+  [8:8+dim*4]    vector: float32 × dimension
+
+stride = 8 + dimension × 4 bytes per record
+record N starts at: 24 + N × stride
