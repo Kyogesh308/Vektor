@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Distance metric implementations. Implementation begins in Phase 2."""
 """
 vektor.distance
@@ -13,7 +14,7 @@ Design contracts:
 - METRIC_HIGHER_IS_BETTER maps each metric name to a bool for sort-direction safety.
 """
 
-from __future__ import annotations
+
 
 import numpy as np
 
