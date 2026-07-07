@@ -131,7 +131,9 @@ def search_layer(
 
                 # Prune W to ef size
                 if len(W) > ef:
-                    heapq.heappop(W)  # removes the farthest (largest negated = smallest real)
+                    farthest = max(W, key=lambda x: -x[0])
+                    W.remove(farthest)
+                    heapq.heapify(W) # removes the farthest (largest negated = smallest real)
 
     # Return results sorted ascending by distance
     results = [(-neg_d, nid) for neg_d, nid in W]
@@ -341,21 +343,27 @@ def insert(
         )
 
         # Select neighbours for the new node at this layer
+        target_M = 2 * M if lc == 0 else M
+
         if use_heuristic:
             neighbours = select_neighbors_heuristic(
-                query_vector=new_vector,
-                candidates=candidates,
-                M=M,
-                vectors=vectors,
-                dist_fn=dist_fn,
-                layer=lc,
-                graph=graph,
+            query_vector=new_vector,
+            candidates=candidates,
+            M=target_M,
+            vectors=vectors,
+            dist_fn=dist_fn,
+            layer=lc,
+            graph=graph,
             )
         else:
-            neighbours = select_neighbors_simple(candidates, M)
-
+            neighbours = select_neighbors_simple(
+            candidates,
+            target_M,
+            )
+        
         # Connect new node to its selected neighbours
         graph[new_id][lc] = neighbours
+        graph[new_id][lc] = list(dict.fromkeys(graph[new_id][lc]))  # remove duplicates
 
         # Enforce bidirectional edges + shrink if needed
         for neighbour_id in neighbours:
@@ -363,17 +371,23 @@ def insert(
                 graph[neighbour_id][lc] = []
 
             # Add new_id to neighbour's list
-            if new_id not in graph[neighbour_id][lc]:
-                graph[neighbour_id][lc].append(new_id)
+            if new_id != neighbour_id:
 
+                if new_id not in graph[neighbour_id][lc]:
+                    graph[neighbour_id][lc].append(new_id)
+            
             # Shrink if neighbour now exceeds Mmax
             if len(graph[neighbour_id][lc]) > Mmax:
-                # Reselect neighbours for the existing node using the heuristic
+
                 neighbour_vector = vectors[neighbour_id]
+
                 existing_candidates = [
                     (dist_fn(neighbour_vector, vectors[nid]), nid)
                     for nid in graph[neighbour_id][lc]
                 ]
+
+                old_neighbours = set(graph[neighbour_id][lc])
+
                 if use_heuristic:
                     trimmed = select_neighbors_heuristic(
                         query_vector=neighbour_vector,
@@ -382,10 +396,33 @@ def insert(
                         vectors=vectors,
                         dist_fn=dist_fn,
                         layer=lc,
+                        graph=graph,
                     )
                 else:
                     trimmed = select_neighbors_simple(existing_candidates, Mmax)
+
                 graph[neighbour_id][lc] = trimmed
+
+                new_neighbours = set(trimmed)
+
+                removed = old_neighbours - new_neighbours
+
+                for removed_id in removed:
+
+                    if lc not in graph.get(removed_id, {}):
+                        continue
+
+                    if neighbour_id in graph[removed_id][lc]:
+                        graph[removed_id][lc].remove(neighbour_id)
+
+                # Ensure surviving neighbours remain symmetric
+                for kept_id in new_neighbours:
+
+                    if lc not in graph[kept_id]:
+                        graph[kept_id][lc] = []
+
+                    if neighbour_id not in graph[kept_id][lc]:
+                        graph[kept_id][lc].append(neighbour_id)
 
         # Update entry points for next layer descent
         ep = [res[1] for res in candidates[:ef_construction]]
