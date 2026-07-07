@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS vectors (
     slot_id     INTEGER NOT NULL,
     deleted     INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,
+    metadata    TEXT,          -- JSON string, nullable
     PRIMARY KEY (id, collection),
     FOREIGN KEY (collection) REFERENCES collections(name)
 );

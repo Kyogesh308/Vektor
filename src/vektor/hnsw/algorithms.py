@@ -25,6 +25,8 @@ from typing import Any, Callable, Optional
 
 import numpy as np
 
+from vektor.benchmark import results
+
 
 # ---------------------------------------------------------------------------
 # Type aliases for readability
@@ -478,6 +480,7 @@ def knn_search(
     graph: Graph,
     vectors: dict[NodeID, np.ndarray],
     dist_fn: Callable[[np.ndarray, np.ndarray], float],
+    skip_ids: Optional[set[NodeID]] = None,
     skip_from_results: Optional[frozenset[NodeID]] = None,
     skip_entirely: Optional[frozenset[NodeID]] = None,
 ) -> list[tuple[float, NodeID]]:
@@ -508,6 +511,19 @@ def knn_search(
         InvalidEFError: ef < k.
     """
     from vektor.hnsw.exceptions import InvalidEFError
+    # ------------------------------------------------------------------
+# Backward compatibility (Phase 7 -> Phase 9 transition)
+# ------------------------------------------------------------------
+
+    
+    if skip_ids is not None and skip_from_results is None:
+        skip_from_results = frozenset(skip_ids)
+
+    if skip_from_results is None:
+        skip_from_results = frozenset()
+
+    if skip_entirely is None:
+        skip_entirely = frozenset()
 
     if ef < k:
         raise InvalidEFError(
@@ -515,11 +531,6 @@ def knn_search(
             f"Increase ef or decrease k."
         )
 
-    if skip_from_results is None:
-        skip_from_results = frozenset()
-
-    if skip_entirely is None:
-        skip_entirely = frozenset()
 
     ep = [entry_point]
 
@@ -559,5 +570,13 @@ def knn_search(
         skip_from_results=skip_from_results,
         skip_entirely=skip_entirely,
     )
+    if skip_ids:
+
+        results = [
+            (d, nid)
+            for d, nid in results
+            if nid not in skip_ids
+        ]
 
     return results[:k]
+
