@@ -55,7 +55,8 @@ def search_layer(
     graph: Graph,
     vectors: dict[NodeID, np.ndarray],
     dist_fn: Callable[[np.ndarray, np.ndarray], float],
-    skip_ids: Optional[set[NodeID]] = None,
+    skip_from_results: Optional[frozenset[NodeID]] = None,
+    skip_entirely: Optional[frozenset[NodeID]] = None,
 ) -> list[tuple[float, NodeID]]:
     """
     Algorithm 2 from the paper. Core beam search at a single graph layer.
@@ -65,81 +66,111 @@ def search_layer(
     is possible.
 
     Args:
-        query_vector:  The query as a float32 ndarray.
-        entry_points:  Starting node IDs for this layer's search.
-        ef:            Beam width — maximum result set size.
-        layer:         The graph layer to search (0-indexed).
-        graph:         The full adjacency structure.
-        vectors:       NodeID → float32 ndarray mapping.
-        dist_fn:       Function(ndarray, ndarray) → float.
-                       Must return lower values for more similar vectors.
-        skip_ids:      Optional set of NodeIDs to treat as non-existent.
-                       Used in Phase 9 for tombstone-aware search.
-                       Pass None or empty set in Phase 7.
+        query_vector:      The query as a float32 ndarray.
+        entry_points:      Starting node IDs.
+        ef:                Beam width.
+        layer:             Graph layer.
+        graph:             Graph adjacency structure.
+        vectors:           NodeID -> vector mapping.
+        dist_fn:           Distance function.
+
+        skip_from_results:
+            Tombstoned nodes. They are traversed normally but are
+            never returned in the final result heap.
+
+        skip_entirely:
+            Nodes that should not even participate in graph traversal.
+            Used later for filtering during maintenance operations.
 
     Returns:
-        List of (distance, node_id) tuples, sorted ascending by distance.
-        Length <= ef.
+        List[(distance, node_id)] sorted ascending.
     """
-    if skip_ids is None:
-        skip_ids = set()
+
+    if skip_from_results is None:
+        skip_from_results = frozenset()
+
+    if skip_entirely is None:
+        skip_entirely = frozenset()
 
     visited: set[NodeID] = set()
 
-    # candidates: min-heap of (distance, node_id) — closest at top
+    # Candidate min-heap
     candidates: list[tuple[float, NodeID]] = []
 
-    # W: max-heap of (distance, node_id) — farthest at top
-    # Python heapq is min-heap → store (-distance, node_id)
+    # Result max-heap (implemented via negative distances)
     W: list[tuple[float, NodeID]] = []
 
+    # --------------------------------------------------------
+    # Initialize entry points
+    # --------------------------------------------------------
+
     for ep in entry_points:
-        if ep in skip_ids:
+
+        if ep in skip_entirely:
             continue
+
         d = dist_fn(query_vector, vectors[ep])
+
         heapq.heappush(candidates, (d, ep))
-        heapq.heappush(W, (-d, ep))  # negated for max-heap
         visited.add(ep)
 
+        if ep not in skip_from_results:
+            heapq.heappush(W, (-d, ep))
+
+    # --------------------------------------------------------
+    # Main beam search
+    # --------------------------------------------------------
+
     while candidates:
-        # Closest unexplored candidate
+
         c_dist, c_id = heapq.heappop(candidates)
 
-        # Farthest current result (negate back to get actual distance)
-        f_dist = -W[0][0]
+        f_dist = -W[0][0] if W else float("inf")
 
-        # Termination: if the closest candidate is farther than our worst
-        # result, no further exploration can improve W.
         if c_dist > f_dist:
             break
 
-        # Expand c_id's neighbours at this layer
         neighbours = graph.get(c_id, {}).get(layer, [])
+
         for neighbour_id in neighbours:
-            if neighbour_id in visited or neighbour_id in skip_ids:
+
+            if neighbour_id in visited:
                 continue
+
+            if neighbour_id in skip_entirely:
+                continue
+
             visited.add(neighbour_id)
 
             n_dist = dist_fn(query_vector, vectors[neighbour_id])
-            f_dist = -W[0][0]
 
-            # Accept this neighbour if the result set isn't full yet,
-            # or if it's closer than the current worst result.
+            f_dist = -W[0][0] if W else float("inf")
+
             if len(W) < ef or n_dist < f_dist:
+
                 heapq.heappush(candidates, (n_dist, neighbour_id))
-                heapq.heappush(W, (-n_dist, neighbour_id))
 
-                # Prune W to ef size
-                if len(W) > ef:
-                    farthest = max(W, key=lambda x: -x[0])
-                    W.remove(farthest)
-                    heapq.heapify(W) # removes the farthest (largest negated = smallest real)
+                # Tombstoned nodes remain traversable but are not returned.
+                if neighbour_id not in skip_from_results:
 
-    # Return results sorted ascending by distance
-    results = [(-neg_d, nid) for neg_d, nid in W]
+                    heapq.heappush(W, (-n_dist, neighbour_id))
+
+                    # Keep only ef best results.
+                    if len(W) > ef:
+
+                        # Remove the farthest node.
+                        farthest = max(W, key=lambda x: -x[0])
+                        W.remove(farthest)
+                        heapq.heapify(W)
+
+    # --------------------------------------------------------
+    # Convert max-heap back to ascending distance order
+    # --------------------------------------------------------
+
+    results = [(-neg_dist, node_id) for neg_dist, node_id in W]
     results.sort(key=lambda x: x[0])
-    return results
 
+    return results
 
 # ---------------------------------------------------------------------------
 # Algorithm 3 — SELECT-NEIGHBORS-SIMPLE
@@ -447,7 +478,8 @@ def knn_search(
     graph: Graph,
     vectors: dict[NodeID, np.ndarray],
     dist_fn: Callable[[np.ndarray, np.ndarray], float],
-    skip_ids: Optional[set[NodeID]] = None,
+    skip_from_results: Optional[frozenset[NodeID]] = None,
+    skip_entirely: Optional[frozenset[NodeID]] = None,
 ) -> list[tuple[float, NodeID]]:
     """
     Algorithm 5. K-nearest-neighbour search across all layers.
@@ -461,28 +493,42 @@ def knn_search(
         graph:        Full adjacency structure.
         vectors:      NodeID → float32 vector mapping.
         dist_fn:      Distance function (lower = more similar).
-        skip_ids:     Optional tombstoned node IDs to exclude from results.
+
+        skip_from_results:
+            Tombstoned node IDs. They are traversed normally but never
+            appear in the returned nearest-neighbour list.
+
+        skip_entirely:
+            Nodes excluded completely from graph traversal.
 
     Returns:
-        List of (distance, node_id) tuples, length <= k, sorted ascending.
+        List of (distance, node_id), length <= k, sorted ascending.
 
     Raises:
         InvalidEFError: ef < k.
     """
     from vektor.hnsw.exceptions import InvalidEFError
+
     if ef < k:
         raise InvalidEFError(
             f"ef ({ef}) must be >= k ({k}). "
             f"Increase ef or decrease k."
         )
 
-    if skip_ids is None:
-        skip_ids = set()
+    if skip_from_results is None:
+        skip_from_results = frozenset()
+
+    if skip_entirely is None:
+        skip_entirely = frozenset()
 
     ep = [entry_point]
 
-    # Descend from max_layer to layer 1 using ef=1 (greedy navigation)
+    # --------------------------------------------------------
+    # Greedy descent through upper layers
+    # --------------------------------------------------------
+
     for lc in range(max_layer, 0, -1):
+
         results = search_layer(
             query_vector=query_vector,
             entry_points=ep,
@@ -491,11 +537,17 @@ def knn_search(
             graph=graph,
             vectors=vectors,
             dist_fn=dist_fn,
-            skip_ids=skip_ids,
+            skip_from_results=skip_from_results,
+            skip_entirely=skip_entirely,
         )
-        ep = [results[0][1]] if results else ep
 
-    # Search layer 0 with full ef
+        if results:
+            ep = [results[0][1]]
+
+    # --------------------------------------------------------
+    # Beam search at layer 0
+    # --------------------------------------------------------
+
     results = search_layer(
         query_vector=query_vector,
         entry_points=ep,
@@ -504,9 +556,8 @@ def knn_search(
         graph=graph,
         vectors=vectors,
         dist_fn=dist_fn,
-        skip_ids=skip_ids,
+        skip_from_results=skip_from_results,
+        skip_entirely=skip_entirely,
     )
 
-    # Filter skip_ids from final results and return top k
-    filtered = [(d, nid) for d, nid in results if nid not in skip_ids]
-    return filtered[:k]
+    return results[:k]
