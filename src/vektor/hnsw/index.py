@@ -9,9 +9,7 @@ and the threading lock. Delegates all algorithmic work to algorithms.py.
 
 from __future__ import annotations
 
-import math
 import random
-import threading
 from typing import Optional
 
 import numpy as np
@@ -19,21 +17,22 @@ import numpy as np
 from vektor.collection import Collection
 from vektor.distance import compute_distance, METRIC_HIGHER_IS_BETTER
 from vektor.hnsw.algorithms import (
-    Graph, NodeID,
+    Graph,
+    NodeID,
     insert as _insert,
     knn_search as _knn_search,
 )
 from vektor.hnsw.exceptions import EmptyIndexError, InvalidEFError
 from vektor.hnsw.layer import assign_layer
 
-
-# src/vektor/hnsw/index.py — updated relevant sections
-
 from vektor.concurrency.lock import CollectionLock
-from vektor.concurrency.exceptions import VektorTimeoutError
+from vektor.concurrency.exceptions import (
+    VektorTimeoutError,
+    EmptyCollectionError,
+)
+
 
 class HNSWIndex:
-
     def __init__(
         self,
         collection: Collection,
@@ -45,8 +44,10 @@ class HNSWIndex:
         self._ef_construction = collection.ef_construction
         self._seed = seed
         self._rng = random.Random(seed)
+
         self._graph: Graph = {}
         self._vectors: dict[NodeID, np.ndarray] = {}
+
         self._entry_point: Optional[NodeID] = None
         self._max_layer: int = 0
 
@@ -55,12 +56,17 @@ class HNSWIndex:
         self._lock = CollectionLock(timeout=lock_timeout)
 
         metric = collection.metric
+
         if METRIC_HIGHER_IS_BETTER[metric]:
+
             def _dist(a: np.ndarray, b: np.ndarray) -> float:
                 return -compute_distance(metric, a, b)
+
         else:
+
             def _dist(a: np.ndarray, b: np.ndarray) -> float:
                 return compute_distance(metric, a, b)
+
         self._dist_fn = _dist
 
     def add(
@@ -74,11 +80,12 @@ class HNSWIndex:
 
         Args:
             slot_id: Integer slot ID.
-            vector:  Float32 ndarray, pre-validated.
+            vector: Float32 ndarray, pre-validated.
             timeout: Lock acquisition timeout. Uses instance default if None.
 
         Raises:
-            VektorTimeoutError: Lock not acquired within timeout.
+            VektorTimeoutError:
+                Lock not acquired within timeout.
         """
         new_layer = assign_layer(self._M, self._rng)
 
@@ -101,54 +108,60 @@ class HNSWIndex:
             )
 
     def search(
-    self,
-    query: np.ndarray,
-    k: int,
-    ef: int,
-    skip_ids: Optional[set[NodeID]] = None,      # <-- restore
-    skip_from_results: Optional[frozenset[NodeID]] = None,
-    skip_entirely: Optional[frozenset[NodeID]] = None,
-    timeout: float = None,
-) -> list[tuple[float, NodeID]]:
+        self,
+        query: np.ndarray,
+        k: int,
+        ef: int,
+        skip_from_results: Optional[frozenset] = None,
+        skip_entirely: Optional[frozenset] = None,
+        timeout: float = None,
+    ) -> list[tuple[float, int]]:
         """
-        Search. Acquires the exclusive lock.
+        Find the k approximate nearest neighbours of the query vector.
 
-        # v2 note: this should acquire a shared (read) lock.
-        # In v1, reads are serialised with writes — no concurrent search.
+        Args:
+            query:
+                Float32 query vector, pre-validated.
+            k:
+                Number of results to return.
+            ef:
+                Beam width. Must be >= k.
+            skip_from_results:
+                Tombstoned slot IDs — traversed but not returned.
+            skip_entirely:
+                Filter-ineligible slot IDs — skipped completely.
+            timeout:
+                Lock acquisition timeout. Uses instance default if None.
+
+        Returns:
+            List of (distance, slot_id) tuples sorted by ascending distance.
 
         Raises:
-            EmptyCollectionError: No live vectors in the index.
-            InvalidEFError:       ef < k.
-            VektorTimeoutError:   Lock not acquired within timeout.
+            EmptyCollectionError:
+                No vectors in the index.
+            InvalidEFError:
+                ef < k.
+            VektorTimeoutError:
+                Lock not acquired within timeout.
         """
-        # Lock acquired here — tombstone set must be built INSIDE the lock
-        # to prevent a delete committing between tombstone build and search start
+
+        # Import here to avoid circular imports
+        from vektor.concurrency.exceptions import EmptyCollectionError
+        from vektor.hnsw.exceptions import InvalidEFError
+
         with self._lock.acquire(operation="search", timeout=timeout):
-            # ----------------------------------------------------------
-            # Backward compatibility (Phase 7 -> Phase 9)
-            # ----------------------------------------------------------
 
-            if skip_ids is not None and skip_from_results is None:
-                skip_from_results = frozenset(skip_ids)
-
-            if skip_from_results is None:
-                skip_from_results = frozenset()
-
-            if skip_entirely is None:
-                skip_entirely = frozenset()
-                
-            # Entry point guard — must be inside lock
+            # Empty guard — must be inside lock to be thread-safe
+            # Raises EmptyCollectionError (Phase 10)
             if self._entry_point is None:
-                raise EmptyIndexError(
-                    "Cannot search an empty HNSW index. "
+                raise EmptyCollectionError(
+                    "Cannot search an empty collection. "
                     "Insert at least one vector first."
                 )
 
             if ef < k:
-                from vektor.hnsw.exceptions import InvalidEFError
                 raise InvalidEFError(f"ef ({ef}) must be >= k ({k}).")
-            
-                
+
             return _knn_search(
                 query_vector=query,
                 k=k,
@@ -164,19 +177,26 @@ class HNSWIndex:
 
     def check_integrity(self, timeout: float = None) -> dict:
         """Acquires the lock for a consistent integrity snapshot."""
-        with self._lock.acquire(operation="integrity_check", timeout=timeout):
-            # ... existing integrity check logic, unchanged ...
+
+        with self._lock.acquire(
+            operation="integrity_check",
+            timeout=timeout,
+        ):
             errors = []
             warnings = []
+
             M = self._M
+
             for node_id, layers in self._graph.items():
                 for layer, neighbours in layers.items():
                     Mmax = 2 * M if layer == 0 else M
+
                     if len(neighbours) > Mmax:
                         errors.append(
-                            f"Node {node_id} layer {layer}: degree {len(neighbours)} "
-                            f"exceeds Mmax {Mmax}."
+                            f"Node {node_id} layer {layer}: "
+                            f"degree {len(neighbours)} exceeds Mmax {Mmax}."
                         )
+
                     for neighbour_id in neighbours:
                         if neighbour_id not in self._graph:
                             errors.append(
@@ -184,24 +204,32 @@ class HNSWIndex:
                                 f"neighbour {neighbour_id} at layer {layer}."
                             )
                             continue
+
                         if layer not in self._graph[neighbour_id]:
                             errors.append(
-                                f"Edge {node_id}→{neighbour_id} at layer {layer} "
-                                f"has no reverse."
+                                f"Edge {node_id}→{neighbour_id} at layer "
+                                f"{layer} has no reverse."
                             )
+
                         elif node_id not in self._graph[neighbour_id][layer]:
                             errors.append(
-                                f"Edge {node_id}→{neighbour_id} at layer {layer} "
-                                f"is not bidirectional."
+                                f"Edge {node_id}→{neighbour_id} at layer "
+                                f"{layer} is not bidirectional."
                             )
+
             if self._entry_point is not None:
                 ep_max = max(self._graph[self._entry_point].keys())
+
                 if ep_max != self._max_layer:
                     errors.append(
                         f"Entry point max layer {ep_max} != "
                         f"recorded max_layer {self._max_layer}."
                     )
-            return {"errors": errors, "warnings": warnings}
+
+            return {
+                "errors": errors,
+                "warnings": warnings,
+            }
 
     @property
     def size(self) -> int:
@@ -214,4 +242,3 @@ class HNSWIndex:
     @property
     def max_layer(self) -> int:
         return self._max_layer
-
