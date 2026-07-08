@@ -47,7 +47,7 @@ class CollectionLock:
     """
 
     def __init__(self, timeout: float = DEFAULT_TIMEOUT_SECONDS) -> None:
-        self._lock = threading.RLock()
+        self._lock = threading.Lock()
         self._default_timeout = timeout
 
     @contextmanager

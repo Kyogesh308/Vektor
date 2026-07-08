@@ -30,7 +30,7 @@ from vektor.hnsw.layer import assign_layer
 # src/vektor/hnsw/index.py — updated relevant sections
 
 from vektor.concurrency.lock import CollectionLock
-from vektor.concurrency.exceptions import VektorTimeoutError, EmptyCollectionError
+from vektor.concurrency.exceptions import VektorTimeoutError
 
 class HNSWIndex:
 
@@ -101,14 +101,15 @@ class HNSWIndex:
             )
 
     def search(
-        self,
-        query: np.ndarray,
-        k: int,
-        ef: int,
-        skip_from_results: Optional[frozenset[NodeID]] = None,
-        skip_entirely: Optional[frozenset[NodeID]] = None,
-        timeout: float = None,
-    ) -> list[tuple[float, NodeID]]:
+    self,
+    query: np.ndarray,
+    k: int,
+    ef: int,
+    skip_ids: Optional[set[NodeID]] = None,      # <-- restore
+    skip_from_results: Optional[frozenset[NodeID]] = None,
+    skip_entirely: Optional[frozenset[NodeID]] = None,
+    timeout: float = None,
+) -> list[tuple[float, NodeID]]:
         """
         Search. Acquires the exclusive lock.
 
@@ -123,18 +124,31 @@ class HNSWIndex:
         # Lock acquired here — tombstone set must be built INSIDE the lock
         # to prevent a delete committing between tombstone build and search start
         with self._lock.acquire(operation="search", timeout=timeout):
+            # ----------------------------------------------------------
+            # Backward compatibility (Phase 7 -> Phase 9)
+            # ----------------------------------------------------------
 
+            if skip_ids is not None and skip_from_results is None:
+                skip_from_results = frozenset(skip_ids)
+
+            if skip_from_results is None:
+                skip_from_results = frozenset()
+
+            if skip_entirely is None:
+                skip_entirely = frozenset()
+                
             # Entry point guard — must be inside lock
             if self._entry_point is None:
-                raise EmptyCollectionError(
-                    "Cannot search an empty collection. "
+                raise EmptyIndexError(
+                    "Cannot search an empty HNSW index. "
                     "Insert at least one vector first."
                 )
 
             if ef < k:
                 from vektor.hnsw.exceptions import InvalidEFError
                 raise InvalidEFError(f"ef ({ef}) must be >= k ({k}).")
-
+            
+                
             return _knn_search(
                 query_vector=query,
                 k=k,
