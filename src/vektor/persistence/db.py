@@ -20,15 +20,14 @@ def utcnow() -> str:
 
 def get_connection(db_path: Path) -> sqlite3.Connection:
     """
-    Open a SQLite connection with WAL mode and foreign keys enabled.
+    Open a SQLite connection safe for cross-thread access.
 
-    Args:
-        db_path: Path to the metadata.db file.
-
-    Returns:
-        Configured sqlite3.Connection.
+    check_same_thread=False: allows threads other than the creating thread
+    to use this connection. Thread safety is handled by CollectionLock —
+    all SQLite calls are serialised through the collection lock, so sharing
+    one connection is safe.
     """
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA synchronous=NORMAL;")
