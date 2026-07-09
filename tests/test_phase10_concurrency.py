@@ -51,8 +51,7 @@ class TestCollectionLock:
     def test_acquires_and_releases_normally(self):
         lock = CollectionLock()
         with lock.acquire(operation="test"):
-            pass  # Lock held here
-        # Lock released — next acquire must succeed
+            pass
         with lock.acquire(operation="test2"):
             pass
 
@@ -63,31 +62,58 @@ class TestCollectionLock:
                 raise ValueError("intentional error")
         except ValueError:
             pass
-        # Lock must be released — this must not timeout
         with lock.acquire(operation="after_exception", timeout=1.0):
             pass
 
     def test_timeout_zero_raises_when_lock_held(self):
+        """
+        A genuinely held lock (by a DIFFERENT thread) must cause timeout=0
+        to raise immediately. Same-thread reacquisition cannot test this —
+        RLock guarantees the owner always succeeds, by design.
+        """
         lock = CollectionLock()
-        acquired = lock._lock.acquire(blocking=False)
-        assert acquired
+        holder_ready = threading.Event()
+        release_holder = threading.Event()
+
+        def hold_lock():
+            with lock.acquire(operation="holder"):
+                holder_ready.set()
+                release_holder.wait(timeout=5.0)
+
+        holder_thread = threading.Thread(target=hold_lock)
+        holder_thread.start()
+        holder_ready.wait(timeout=5.0)  # Ensure the other thread actually holds it
 
         try:
             with pytest.raises(VektorTimeoutError):
                 with lock.acquire(operation="nonblocking", timeout=0):
                     pass
         finally:
-            lock._lock.release()
+            release_holder.set()
+            holder_thread.join(timeout=5.0)
 
     def test_timeout_error_message_contains_operation_name(self):
+        """Error message must name the operation that timed out."""
         lock = CollectionLock()
-        lock._lock.acquire()
+        holder_ready = threading.Event()
+        release_holder = threading.Event()
+
+        def hold_lock():
+            with lock.acquire(operation="holder"):
+                holder_ready.set()
+                release_holder.wait(timeout=5.0)
+
+        holder_thread = threading.Thread(target=hold_lock)
+        holder_thread.start()
+        holder_ready.wait(timeout=5.0)
+
         try:
             with pytest.raises(VektorTimeoutError, match="my_operation"):
                 with lock.acquire(operation="my_operation", timeout=0):
                     pass
         finally:
-            lock._lock.release()
+            release_holder.set()
+            holder_thread.join(timeout=5.0)
 
     def test_reentrant_acquisition_does_not_deadlock(self):
         """RLock allows the same thread to acquire multiple times."""
@@ -97,19 +123,34 @@ class TestCollectionLock:
                 pass  # Both held simultaneously — no deadlock
 
     def test_default_timeout_applied_when_none_passed(self):
-        lock = CollectionLock(timeout=0.1)  # 100ms default
-        lock._lock.acquire()
+        """
+        A genuinely held lock (different thread) with a short default
+        timeout must raise within approximately that timeout window.
+        """
+        lock = CollectionLock(timeout=0.2)  # 200ms default
+        holder_ready = threading.Event()
+        release_holder = threading.Event()
+
+        def hold_lock():
+            with lock.acquire(operation="holder"):
+                holder_ready.set()
+                release_holder.wait(timeout=5.0)
+
+        holder_thread = threading.Thread(target=hold_lock)
+        holder_thread.start()
+        holder_ready.wait(timeout=5.0)
+
         start = time.perf_counter()
         try:
             with pytest.raises(VektorTimeoutError):
-                with lock.acquire(operation="test"):
+                with lock.acquire(operation="test"):  # timeout=None → uses default 0.2s
                     pass
         finally:
-            lock._lock.release()
-        elapsed = time.perf_counter() - start
-        # Must have waited approximately the timeout, not longer
-        assert elapsed < 1.0, f"Waited {elapsed:.2f}s — too long for 0.1s timeout"
+            release_holder.set()
+            holder_thread.join(timeout=5.0)
 
+        elapsed = time.perf_counter() - start
+        assert elapsed < 2.0, f"Waited {elapsed:.2f}s — too long for 0.2s default timeout"
 
 # ---------------------------------------------------------------------------
 # Timeout test

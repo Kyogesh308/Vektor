@@ -108,73 +108,69 @@ class HNSWIndex:
             )
 
     def search(
-        self,
-        query: np.ndarray,
-        k: int,
-        ef: int,
-        skip_from_results: Optional[frozenset] = None,
-        skip_entirely: Optional[frozenset] = None,
-        timeout: float = None,
-    ) -> list[tuple[float, int]]:
+    self,
+    query: np.ndarray,
+    k: int,
+    ef: int,
+    skip_from_results: Optional[frozenset] = None,
+    skip_entirely: Optional[frozenset] = None,
+    skip_ids: Optional[set] = None,   # legacy alias — maps to skip_from_results
+    timeout: float = None,
+) -> list[tuple[float, int]]:
         """
-        Find the k approximate nearest neighbours of the query vector.
+    Find the k approximate nearest neighbours of the query vector.
 
-        Args:
-            query:
-                Float32 query vector, pre-validated.
-            k:
-                Number of results to return.
-            ef:
-                Beam width. Must be >= k.
-            skip_from_results:
-                Tombstoned slot IDs — traversed but not returned.
-            skip_entirely:
-                Filter-ineligible slot IDs — skipped completely.
-            timeout:
-                Lock acquisition timeout. Uses instance default if None.
+    Args:
+        query:             Float32 query vector, pre-validated.
+        k:                 Number of results to return.
+        ef:                Beam width. Must be >= k.
+        skip_from_results: Tombstoned slot IDs — traversed but not returned.
+        skip_entirely:     Filter-ineligible slot IDs — skipped completely.
+        skip_ids:          DEPRECATED legacy alias for skip_from_results.
+                           Kept for backward compatibility with Phase 7 callers.
+                           If both skip_ids and skip_from_results are given,
+                           they are merged.
+        timeout:           Lock acquisition timeout. Uses instance default if None.
 
-        Returns:
-            List of (distance, slot_id) tuples sorted by ascending distance.
+    Returns:
+        List of (distance, slot_id) tuples sorted ascending by distance.
 
-        Raises:
-            EmptyCollectionError:
-                No vectors in the index.
-            InvalidEFError:
-                ef < k.
-            VektorTimeoutError:
-                Lock not acquired within timeout.
+    Raises:
+        EmptyCollectionError: No vectors in the index (subclass of EmptyIndexError).
+        InvalidEFError:       ef < k.
+        VektorTimeoutError:   Lock not acquired within timeout.
         """
-
-        # Import here to avoid circular imports
         from vektor.concurrency.exceptions import EmptyCollectionError
         from vektor.hnsw.exceptions import InvalidEFError
 
+        # Merge legacy skip_ids into skip_from_results
+        merged_skip_from_results = frozenset(skip_from_results or ())
+        if skip_ids:
+            merged_skip_from_results = merged_skip_from_results | frozenset(skip_ids)
+
         with self._lock.acquire(operation="search", timeout=timeout):
 
-            # Empty guard — must be inside lock to be thread-safe
-            # Raises EmptyCollectionError (Phase 10)
             if self._entry_point is None:
                 raise EmptyCollectionError(
                     "Cannot search an empty collection. "
                     "Insert at least one vector first."
                 )
 
-            if ef < k:
-                raise InvalidEFError(f"ef ({ef}) must be >= k ({k}).")
+        if ef < k:
+            raise InvalidEFError(f"ef ({ef}) must be >= k ({k}).")
 
-            return _knn_search(
-                query_vector=query,
-                k=k,
-                ef=ef,
-                entry_point=self._entry_point,
-                max_layer=self._max_layer,
-                graph=self._graph,
-                vectors=self._vectors,
-                dist_fn=self._dist_fn,
-                skip_from_results=skip_from_results or frozenset(),
-                skip_entirely=skip_entirely or frozenset(),
-            )
-
+        return _knn_search(
+            query_vector=query,
+            k=k,
+            ef=ef,
+            entry_point=self._entry_point,
+            max_layer=self._max_layer,
+            graph=self._graph,
+            vectors=self._vectors,
+            dist_fn=self._dist_fn,
+            skip_from_results=merged_skip_from_results,
+            skip_entirely=skip_entirely or frozenset(),
+        )
     def check_integrity(self, timeout: float = None) -> dict:
         """Acquires the lock for a consistent integrity snapshot."""
 
