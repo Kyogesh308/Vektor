@@ -72,7 +72,8 @@ class Collection:
         self._data_dir: Path = Path()
         self._collection_dir: Path = Path()
         self._default_overfetch_factor: int = 3
-
+        self._next_slot_id: int = 0
+        
         self._internal_collection: Optional[InternalCollection] = None
         self._index: Optional[HNSWIndex] = None
         self._store: Optional[VectorStore] = None
@@ -108,10 +109,15 @@ class Collection:
                              vektor_version="0.5.0")
         write_manifest(obj._collection_dir / "collection.json",
                        name, dim, metric, M, ef_construction)
+        
+        from vektor.persistence.binary import init_vector_bin
+        init_vector_bin(obj._collection_dir / "vector.bin", dimension = dim)
+        
 
         obj._index = HNSWIndex(obj._internal_collection, seed=42, lock_timeout=lock_timeout)
         obj._store = VectorStore(obj._internal_collection, lock_timeout=lock_timeout)
-
+        obj._next_slot_id = 0
+        
         return obj
 
     @classmethod
@@ -143,9 +149,14 @@ class Collection:
 
         obj._index = HNSWIndex(obj._internal_collection, seed=42, lock_timeout=lock_timeout)
         obj._store = VectorStore(obj._internal_collection, lock_timeout=lock_timeout)
+        row = obj._conn.execute(
+            "SELECT MAX(slot_id) FROM vectors WHERE collection = ?", (name,)
+        ).fetchone()
+        obj._next_slot_id = (row[0] + 1) if row[0] is not None else 0
 
         obj._rehydrate_from_disk()
         return obj
+    
 
     def _rehydrate_from_disk(self) -> None:
         """Load vectors from vector.bin and metadata.db back into memory."""
@@ -194,27 +205,24 @@ class Collection:
 
     def insert(self, id: str, vector, metadata: Optional[dict] = None) -> None:
         """
-        Insert a single vector.
+    Insert a single vector.
 
-        Args:
-            id:       Unique string identifier. Must not already exist.
-            vector:   List or numpy array. Normalised to float32 internally.
-                     PyTorch/TensorFlow tensors not accepted — call .numpy() first.
-            metadata: Optional dict of JSON-serializable values.
+    Args:
+        id:       Unique string identifier. Must not already exist.
+        vector:   List or numpy array. Normalised to float32 internally.
+        metadata: Optional dict of JSON-serializable values.
 
-        Returns:
-            None.
+    Returns:
+        None.
 
-        Raises:
-            DuplicateIDError:            id already exists and is not deleted.
-            InvalidVectorDimensionError: vector length doesn't match collection dim.
-                                         If a 2D array of shape (1, dim) is passed,
-                                         the error message suggests squeezing it.
-            NonFiniteVectorError:        vector contains NaN or infinity.
-            InvalidIDTypeError, EmptyIDError, IDTooLongError,
-            InvalidIDCharacterError:     Invalid id.
-            InvalidMetadataTypeError,
-            NonSerializableMetadataError: Invalid metadata.
+    Raises:
+        DuplicateIDError:            id already exists and is not deleted.
+        InvalidVectorDimensionError: vector length doesn't match collection dim.
+        NonFiniteVectorError:        vector contains NaN or infinity.
+        InvalidIDTypeError, EmptyIDError, IDTooLongError,
+        InvalidIDCharacterError:     Invalid id.
+        InvalidMetadataTypeError,
+        NonSerializableMetadataError: Invalid metadata.
         """
         vector_arr = np.asarray(vector, dtype=np.float64)
         if vector_arr.ndim == 2 and vector_arr.shape[0] == 1:
@@ -231,10 +239,18 @@ class Collection:
             if "already exists" in str(e):
                 raise DuplicateIDError(str(e)) from e
             raise
+        
+        slot_id = self._next_slot_id
+        self._next_slot_id += 1
+        
+        
 
-        slot_id = get_next_slot_id(self._conn, self._name) - 1
         validated_vector = validate_vector(vector, self._dim)
         self._index.add(slot_id, validated_vector)
+
+        from vektor.persistence.binary import append_vector
+        append_vector(self._collection_dir / "vector.bin", slot_id, validated_vector)
+
         insert_vector_record(self._conn, id, self._name, slot_id)
 
     def batch_insert(self, records: list[dict]) -> BatchInsertResult:

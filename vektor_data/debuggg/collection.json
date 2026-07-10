@@ -1,0 +1,9 @@
+{
+  "name": "debuggg",
+  "dimension": 16,
+  "metric": "cosine",
+  "m": 16,
+  "ef_construction": 200,
+  "created_at": "2026-07-10T04:32:24.824786+00:00",
+  "vektor_version": "0.5.0"
+}
