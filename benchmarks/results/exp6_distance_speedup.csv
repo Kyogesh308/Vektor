@@ -1,0 +1,4 @@
+git_commit,seed,dataset,timestamp,metric,numpy_us_per_call,python_us_per_call,speedup
+2b52d5084a286fdafbcaf5abf2a73fdb74debe63,42,fixed_128d_vectors,2026-07-12T07:17:51.489611+00:00,cosine,11.3461,39.6631,3.5
+2b52d5084a286fdafbcaf5abf2a73fdb74debe63,42,fixed_128d_vectors,2026-07-12T07:17:51.522657+00:00,dot,1.0394,8.1924,7.88
+2b52d5084a286fdafbcaf5abf2a73fdb74debe63,42,fixed_128d_vectors,2026-07-12T07:17:51.565514+00:00,l2,2.3529,21.0283,8.94

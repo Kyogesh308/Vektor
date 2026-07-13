@@ -18,11 +18,11 @@ DATASETS_DIR = Path(__file__).parent.parent / "benchmarks" / "datasets"
 
 DATASETS = {
     "sift-128-euclidean.hdf5": {
-        "url": "http://ann-benchmarks.com/sift-128-euclidean.hdf5",
+        "url": "https://ann-benchmarks.com/sift-128-euclidean.hdf5",
         "expected_size_mb": 465,
     },
     "glove-100-angular.hdf5": {
-        "url": "http://ann-benchmarks.com/glove-100-angular.hdf5",
+        "url": "https://ann-benchmarks.com/glove-100-angular.hdf5",
         "expected_size_mb": 485,
     },
 }
