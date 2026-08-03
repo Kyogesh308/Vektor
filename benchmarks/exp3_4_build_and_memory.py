@@ -18,7 +18,7 @@ from vektor.benchmark.memory import measure_peak_memory
 from benchmarks.common import base_row
 
 RESULTS_DIR = Path(__file__).parent / "results"
-DATASET_SIZES = [1_000, 5_000, 10_000, 50_000, 100_000]
+DATASET_SIZES = [1_000, 5_000, 10_000, 50_000, 100_000, 500_000, 1_000_000]
 DIM = 128
 M = 16
 EF_CONSTRUCTION = 200

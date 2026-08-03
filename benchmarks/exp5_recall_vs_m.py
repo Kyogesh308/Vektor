@@ -10,7 +10,7 @@ from pathlib import Path
 
 from vektor.hnsw.index import HNSWIndex
 from vektor.collection import Collection
-from vektor.benchmark.datasets import load_sift128
+from vektor.benchmark.datasets import load_sift128, _brute_force_ground_truth
 from vektor.benchmark.recall import mean_recall_at_k
 from vektor.benchmark.memory import measure_peak_memory
 from benchmarks.common import base_row
@@ -27,6 +27,7 @@ QUERY_SUBSET = 1_000
 
 def run() -> None:
     ds = load_sift128(max_train=SUBSET_SIZE, max_queries=QUERY_SUBSET)
+    ds.ground_truth = _brute_force_ground_truth(ds.train, ds.queries, k=K, metric="euclidean")
     rows = []
 
     for M in M_VALUES:
