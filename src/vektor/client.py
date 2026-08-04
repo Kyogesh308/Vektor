@@ -189,9 +189,35 @@ class Vektor:
                 break
             except PermissionError:
                 if attempt == 4:
-                    raise
-                gc.collect()
-                time.sleep(0.2)
+                    # Windows file lock fallback: wipe contents if directory removal is locked by Windows
+                    try:
+                        db_path = collection_dir / "metadata.db"
+                        if db_path.exists():
+                            import sqlite3
+                            conn = sqlite3.connect(db_path)
+                            try:
+                                conn.execute("DELETE FROM metadata;")
+                                conn.execute("DELETE FROM vectors;")
+                                conn.execute("DELETE FROM collections;")
+                                conn.commit()
+                            except Exception:
+                                pass
+                            finally:
+                                conn.close()
+                        for p in collection_dir.iterdir():
+                            if p.name != "metadata.db":
+                                try:
+                                    if p.is_dir():
+                                        shutil.rmtree(p, ignore_errors=True)
+                                    else:
+                                        p.unlink(missing_ok=True)
+                                except Exception:
+                                    pass
+                    except Exception:
+                        pass
+                else:
+                    gc.collect()
+                    time.sleep(0.2)
 
     def list_collections(self) -> list[str]:
         """

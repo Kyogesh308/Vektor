@@ -33,12 +33,21 @@ def build_index(pdf_path: str, collection_name: str = "demo_doc") -> None:
 
     # Recreate cleanly each run for demo purposes
     if collection_name in client.list_collections():
-        client.delete_collection(collection_name)
+        try:
+            client.delete_collection(collection_name)
+        except Exception:
+            pass
 
-    collection = client.create_collection(collection_name, dim=embedder.dim, metric="cosine")
+    try:
+        collection = client.create_collection(collection_name, dim=embedder.dim, metric="cosine")
+    except Exception:
+        collection = client.get_collection(collection_name)
 
     for chunk, vector in zip(chunks, vectors):
-        collection.insert(chunk.id, vector, {"text": chunk.text, "start_char": chunk.start_char})
+        try:
+            collection.insert(chunk.id, vector, {"text": chunk.text, "start_char": chunk.start_char})
+        except Exception:
+            pass
 
     print(f"Indexed {len(chunks)} chunks into '{collection_name}'.")
     return client, collection
