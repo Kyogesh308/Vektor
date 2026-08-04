@@ -1,0 +1,3 @@
+"""
+Demo module test suite.
+"""

@@ -21,7 +21,10 @@ class Embedder:
     def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
         from sentence_transformers import SentenceTransformer
         self._model = SentenceTransformer(model_name)
-        self.dim = self._model.get_sentence_embedding_dimension()
+        if hasattr(self._model, "get_embedding_dimension"):
+            self.dim = self._model.get_embedding_dimension()
+        else:
+            self.dim = self._model.get_sentence_embedding_dimension()
 
     def embed(self, texts: list[str]) -> np.ndarray:
         """Returns float32 array of shape (len(texts), self.dim)."""

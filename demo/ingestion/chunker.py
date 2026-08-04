@@ -28,8 +28,17 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 75) -> list[Chun
     Returns:
         List of Chunk objects with unique IDs.
     """
+    if overlap >= chunk_size:
+        raise ValueError(
+            f"overlap ({overlap}) must be less than chunk_size ({chunk_size}), "
+            f"or chunking will never advance and loop forever."
+        )
+    if chunk_size <= 0:
+        raise ValueError(f"chunk_size must be positive, got {chunk_size}.")
+
     chunks = []
     start = 0
+
     idx = 0
     while start < len(text):
         end = start + chunk_size
