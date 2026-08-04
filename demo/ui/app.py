@@ -6,14 +6,22 @@ Streamlit demo: upload PDF, build index, query live, view golden-set report.
 Run: streamlit run demo/ui/app.py
 """
 
+import sys
 import tempfile
 from pathlib import Path
+
+# Ensure project root is in sys.path when running via streamlit
+project_root = Path(__file__).resolve().parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 import streamlit as st
 
 from demo.build_index import build_index
 from demo.ingestion.embedder import Embedder
 from demo.eval.golden_set import GOLDEN_SET
 from demo.eval.run_eval import run_golden_set_eval
+
 
 st.title("Vektor — Semantic Retrieval Demo")
 

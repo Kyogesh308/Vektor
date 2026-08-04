@@ -6,11 +6,19 @@ Builds vector index from sample.pdf, runs golden set eval & auto questionnaire,
 and outputs formatted reports in demo/results/.
 """
 
+import sys
 from pathlib import Path
+
+# Ensure project root is in sys.path
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 from demo.build_index import build_index
 from demo.ingestion.embedder import Embedder
 from demo.eval.run_eval import run_golden_set_eval, run_auto_questionnaire_eval, save_report
 from demo.eval.report import generate_markdown_report
+
 
 
 def main():
