@@ -40,8 +40,15 @@ if uploaded_file and st.button("Build Index"):
         tmp.write(uploaded_file.read())
         tmp_path = tmp.name
 
+    if "client" in st.session_state:
+        try:
+            st.session_state["client"].close()
+        except Exception:
+            pass
+
     with st.spinner("Indexing..."):
         client, collection = build_index(tmp_path)
+        st.session_state["client"] = client
         st.session_state["collection"] = collection
         st.session_state["embedder"] = Embedder()
     st.success("Index built.")

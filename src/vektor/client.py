@@ -168,8 +168,30 @@ class Vektor:
             self._open_collections[name]._close()
             del self._open_collections[name]
 
+        import gc
+        import os
         import shutil
-        shutil.rmtree(collection_dir)
+        import time
+
+        gc.collect()
+
+        def _onerror(func, path, exc_info):
+            # Attempt to reset file permissions if read-only
+            try:
+                os.chmod(path, 0o777)
+                func(path)
+            except Exception:
+                pass
+
+        for attempt in range(5):
+            try:
+                shutil.rmtree(collection_dir, onerror=_onerror)
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                gc.collect()
+                time.sleep(0.2)
 
     def list_collections(self) -> list[str]:
         """
