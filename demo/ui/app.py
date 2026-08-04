@@ -1,7 +1,7 @@
 """
 demo/ui/app.py
------------------
-Streamlit demo: upload PDF, build index, query live, view golden-set report.
+--------------
+Streamlit demo: upload PDF, index document into Vektor, and perform live semantic retrieval.
 
 Run: streamlit run demo/ui/app.py
 """
@@ -22,20 +22,20 @@ import streamlit as st
 
 from demo.build_index import build_index
 from demo.ingestion.embedder import Embedder
-from demo.eval.golden_set import GOLDEN_SET
-from demo.eval.run_eval import run_golden_set_eval
 
+st.set_page_config(page_title="Vektor Semantic Search", page_icon="🔍", layout="wide")
 
-st.title("Vektor — Semantic Retrieval Demo")
+st.title("🔍 Vektor — Semantic Document Search Demo")
 
 st.markdown(
-    "**Note:** this demo shows retrieval quality on real documents, "
-    "distinct from the mathematical recall@10 benchmarks in the main report."
+    "Upload any PDF document to chunk and index it into Vektor using dense vector embeddings. "
+    "Ask natural language queries to retrieve the most semantically relevant text passages."
 )
 
-uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
+st.sidebar.header("Document & Index Settings")
+uploaded_file = st.file_uploader("Upload a PDF Document", type="pdf")
 
-if uploaded_file and st.button("Build Index"):
+if uploaded_file and st.button("🚀 Build Vector Index", type="primary"):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         tmp.write(uploaded_file.read())
         tmp_path = tmp.name
@@ -46,28 +46,59 @@ if uploaded_file and st.button("Build Index"):
         except Exception:
             pass
 
-    with st.spinner("Indexing..."):
+    with st.spinner("Extracting text, generating embeddings, and building Vektor index..."):
         client, collection = build_index(tmp_path)
         st.session_state["client"] = client
         st.session_state["collection"] = collection
         st.session_state["embedder"] = Embedder()
-    st.success("Index built.")
+        st.session_state["doc_name"] = uploaded_file.name
+
+    st.success(f"Successfully indexed **{collection.count()} chunks** from `{uploaded_file.name}` into Vektor!")
 
 if "collection" in st.session_state:
-    st.subheader("Live Query")
-    query = st.text_input("Ask a question about the document")
-    if query:
-        embedder = st.session_state["embedder"]
-        query_vector = embedder.embed_one(query)
-        results = st.session_state["collection"].search(query_vector, k=5)
-        for r in results:
-            st.markdown(f"**Score:** {r.score:.4f} — {r.metadata.get('text', '')[:200]}...")
+    st.divider()
 
-    st.subheader("Golden Set Evaluation")
-    if st.button("Run Golden Set Eval"):
-        report = run_golden_set_eval(st.session_state["collection"],
-                                     st.session_state["embedder"])
-        st.metric("Mean Precision@k", f"{report['mean_precision_at_k']:.3f}")
-        for r in report["results"]:
-            icon = "PASS" if r["precision_at_k"] > 0 else "FAIL"
-            st.write(f"[{icon}] {r['query']} — precision={r['precision_at_k']:.2f}")
+    col1, col2 = st.columns([3, 1])
+
+    with col2:
+        st.markdown("### Index Info")
+        st.info(
+            f"**Document:** `{st.session_state.get('doc_name', 'Uploaded PDF')}`\n\n"
+            f"**Total Chunks:** `{st.session_state['collection'].count()}`\n\n"
+            f"**Vector Dimension:** `{st.session_state['embedder'].dim}`\n\n"
+            f"**Distance Metric:** `Cosine`"
+        )
+        k_val = st.slider("Top Results (k)", min_value=1, max_value=10, value=5)
+
+    with col1:
+        st.markdown("### 💬 Ask a Question")
+        query = st.text_input(
+            "Enter your query about the document:",
+            placeholder="e.g. What is the name of the director? What are the key findings?"
+        )
+
+        if query:
+            embedder = st.session_state["embedder"]
+            query_vector = embedder.embed_one(query)
+            results = st.session_state["collection"].search(query_vector, k=k_val)
+
+            st.markdown(f"#### Top {len(results)} Retrieved Passages")
+
+            for rank, r in enumerate(results, start=1):
+                chunk_text_content = r.metadata.get("text", "")
+                start_char = r.metadata.get("start_char", 0)
+                score_pct = max(0.0, min(1.0, float(r.score)))
+
+                with st.expander(
+                    f"Rank #{rank} | Relevance Score: {r.score:.4f} ({score_pct:.1%}) — ID: {r.id}",
+                    expanded=(rank == 1)
+                ):
+                    st.progress(score_pct)
+                    st.markdown("**Full Chunk Content:**")
+                    st.text_area(
+                        label="Chunk Text",
+                        value=chunk_text_content,
+                        height=180,
+                        key=f"chunk_text_{r.id}_{rank}"
+                    )
+                    st.caption(f"Chunk ID: `{r.id}` | Start Character: `{start_char}` | Length: `{len(chunk_text_content)} chars`")
