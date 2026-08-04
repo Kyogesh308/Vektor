@@ -1,0 +1,690 @@
+{
+  "timestamp": "20260804_135447",
+  "golden_set_evaluation": {
+    "source": "golden_set",
+    "methodology": "Hand-authored by a human reading the source document. This is the evidentiary component for semantic accuracy claims.",
+    "mean_precision_at_k": 0.26666666666666666,
+    "n_queries": 12,
+    "results": [
+      {
+        "query": "What is Retrieval-Augmented Generation and how does it work?",
+        "expected_chunk_ids": [
+          "chunk_0"
+        ],
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_0",
+            "score": 0.3989244341209194,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 2,
+            "id": "chunk_6",
+            "score": 0.3265266315058846,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 3,
+            "id": "chunk_5",
+            "score": 0.3254155010480274,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 4,
+            "id": "chunk_1",
+            "score": 0.3006956339711696,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 5,
+            "id": "chunk_7",
+            "score": 0.25094965111609024,
+            "text_preview": "",
+            "matches_expected": false
+          }
+        ],
+        "precision_at_k": 0.2
+      },
+      {
+        "query": "What is the main challenge in production RAG systems?",
+        "expected_chunk_ids": [
+          "chunk_0",
+          "chunk_1"
+        ],
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_0",
+            "score": 0.4251323640346527,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 2,
+            "id": "chunk_1",
+            "score": 0.335305233913972,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 3,
+            "id": "chunk_7",
+            "score": 0.17183269094423598,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 4,
+            "id": "chunk_6",
+            "score": 0.07485739886760712,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 5,
+            "id": "chunk_5",
+            "score": 0.03229410766328023,
+            "text_preview": "",
+            "matches_expected": false
+          }
+        ],
+        "precision_at_k": 0.4
+      },
+      {
+        "query": "What graph data structure does Vektor use for approximate nearest neighbor retrieval?",
+        "expected_chunk_ids": [
+          "chunk_1"
+        ],
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_1",
+            "score": 0.5311228949500856,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 2,
+            "id": "chunk_3",
+            "score": 0.5139629551150176,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 3,
+            "id": "chunk_4",
+            "score": 0.47681182622909546,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 4,
+            "id": "chunk_5",
+            "score": 0.4610666907469446,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 5,
+            "id": "chunk_2",
+            "score": 0.35537179442476,
+            "text_preview": "",
+            "matches_expected": false
+          }
+        ],
+        "precision_at_k": 0.2
+      },
+      {
+        "query": "What are the key hyper-parameters governing HNSW performance?",
+        "expected_chunk_ids": [
+          "chunk_2"
+        ],
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_2",
+            "score": 0.5879969947336313,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 2,
+            "id": "chunk_7",
+            "score": 0.33651803949582815,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 3,
+            "id": "chunk_1",
+            "score": 0.2890922599489844,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 4,
+            "id": "chunk_3",
+            "score": 0.16406283760445342,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 5,
+            "id": "chunk_4",
+            "score": 0.14410701394081116,
+            "text_preview": "",
+            "matches_expected": false
+          }
+        ],
+        "precision_at_k": 0.2
+      },
+      {
+        "query": "How does Vektor optimize memory layout for vector distance computations?",
+        "expected_chunk_ids": [
+          "chunk_3"
+        ],
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_3",
+            "score": 0.8425791765796647,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 2,
+            "id": "chunk_4",
+            "score": 0.6590427160263062,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 3,
+            "id": "chunk_2",
+            "score": 0.5102144783863114,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 4,
+            "id": "chunk_5",
+            "score": 0.46866151503691167,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 5,
+            "id": "chunk_0",
+            "score": 0.29153120517730713,
+            "text_preview": "",
+            "matches_expected": false
+          }
+        ],
+        "precision_at_k": 0.2
+      },
+      {
+        "query": "Which SIMD hardware instructions accelerate distance metrics in Vektor?",
+        "expected_chunk_ids": [
+          "chunk_3"
+        ],
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_3",
+            "score": 0.6448582795177865,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 2,
+            "id": "chunk_4",
+            "score": 0.5213140249252319,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 3,
+            "id": "chunk_2",
+            "score": 0.42230733766003475,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 4,
+            "id": "chunk_5",
+            "score": 0.320361216089798,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 5,
+            "id": "chunk_7",
+            "score": 0.2797935771819101,
+            "text_preview": "",
+            "matches_expected": false
+          }
+        ],
+        "precision_at_k": 0.2
+      },
+      {
+        "query": "What methods does Vektor use when vector collection sizes exceed RAM?",
+        "expected_chunk_ids": [
+          "chunk_4"
+        ],
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_3",
+            "score": 0.7063908998007119,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 2,
+            "id": "chunk_4",
+            "score": 0.6712033748626709,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 3,
+            "id": "chunk_5",
+            "score": 0.4189182471584229,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 4,
+            "id": "chunk_2",
+            "score": 0.36832072546009575,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 5,
+            "id": "chunk_0",
+            "score": 0.33565694093704224,
+            "text_preview": "",
+            "matches_expected": false
+          }
+        ],
+        "precision_at_k": 0.2
+      },
+      {
+        "query": "How does Product Quantization compress vectors and how much RAM is saved?",
+        "expected_chunk_ids": [
+          "chunk_4",
+          "chunk_5"
+        ],
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_4",
+            "score": 0.6006696582239662,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 2,
+            "id": "chunk_3",
+            "score": 0.4522316398896726,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 3,
+            "id": "chunk_5",
+            "score": 0.41103710663760834,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 4,
+            "id": "chunk_2",
+            "score": 0.3015755774468861,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 5,
+            "id": "chunk_0",
+            "score": 0.19206162941823182,
+            "text_preview": "",
+            "matches_expected": false
+          }
+        ],
+        "precision_at_k": 0.4
+      },
+      {
+        "query": "What is the difference between mathematical recall and semantic relevance?",
+        "expected_chunk_ids": [
+          "chunk_5",
+          "chunk_6"
+        ],
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_5",
+            "score": 0.43333249886825675,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 2,
+            "id": "chunk_6",
+            "score": 0.36779552698135376,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 3,
+            "id": "chunk_0",
+            "score": 0.24628205597400665,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 4,
+            "id": "chunk_1",
+            "score": 0.14696981888829583,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 5,
+            "id": "chunk_3",
+            "score": 0.13383515976876972,
+            "text_preview": "",
+            "matches_expected": false
+          }
+        ],
+        "precision_at_k": 0.4
+      },
+      {
+        "query": "How should researchers evaluate semantic accuracy of vector retrieval systems?",
+        "expected_chunk_ids": [
+          "chunk_6"
+        ],
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_6",
+            "score": 0.5505922764892743,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 2,
+            "id": "chunk_5",
+            "score": 0.544827585795828,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 3,
+            "id": "chunk_0",
+            "score": 0.49640655496159525,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 4,
+            "id": "chunk_1",
+            "score": 0.32383886859880195,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 5,
+            "id": "chunk_3",
+            "score": 0.2883334801594581,
+            "text_preview": "",
+            "matches_expected": false
+          }
+        ],
+        "precision_at_k": 0.2
+      },
+      {
+        "query": "What programming languages are combined in Vektor's architecture?",
+        "expected_chunk_ids": [
+          "chunk_6",
+          "chunk_7"
+        ],
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_3",
+            "score": 0.45525926084871654,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 2,
+            "id": "chunk_4",
+            "score": 0.4394018054008484,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 3,
+            "id": "chunk_0",
+            "score": 0.2870478630065918,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 4,
+            "id": "chunk_6",
+            "score": 0.21434271335601807,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 5,
+            "id": "chunk_7",
+            "score": 0.1911718065245036,
+            "text_preview": "",
+            "matches_expected": true
+          }
+        ],
+        "precision_at_k": 0.4
+      },
+      {
+        "query": "What are the recommended HNSW configuration parameters for production RAG workloads?",
+        "expected_chunk_ids": [
+          "chunk_7"
+        ],
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_2",
+            "score": 0.42090120440132645,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 2,
+            "id": "chunk_7",
+            "score": 0.3317975599645114,
+            "text_preview": "",
+            "matches_expected": true
+          },
+          {
+            "rank": 3,
+            "id": "chunk_1",
+            "score": 0.2881063394609892,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 4,
+            "id": "chunk_0",
+            "score": 0.22532914578914642,
+            "text_preview": "",
+            "matches_expected": false
+          },
+          {
+            "rank": 5,
+            "id": "chunk_3",
+            "score": 0.06507771850095502,
+            "text_preview": "",
+            "matches_expected": false
+          }
+        ],
+        "precision_at_k": 0.2
+      }
+    ]
+  },
+  "auto_questionnaire_demo": {
+    "source": "auto_generated_questionnaire",
+    "methodology": "LLM-generated questions from the same document. NO independent ground truth \u2014 supplementary demo output only. Do not cite as evidence of semantic accuracy.",
+    "n_queries": 4,
+    "results": [
+      {
+        "query": "How are text chunks converted into embeddings?",
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_0",
+            "score": 0.386123441822734,
+            "text_preview": ""
+          },
+          {
+            "rank": 2,
+            "id": "chunk_4",
+            "score": 0.24150854298523325,
+            "text_preview": ""
+          },
+          {
+            "rank": 3,
+            "id": "chunk_5",
+            "score": 0.20445551925367275,
+            "text_preview": ""
+          },
+          {
+            "rank": 4,
+            "id": "chunk_1",
+            "score": 0.19581947574847577,
+            "text_preview": ""
+          },
+          {
+            "rank": 5,
+            "id": "chunk_6",
+            "score": 0.18064115528113575,
+            "text_preview": ""
+          }
+        ]
+      },
+      {
+        "query": "What are the benefits of AVX-512 intrinsics?",
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_3",
+            "score": 0.34554000768303916,
+            "text_preview": ""
+          },
+          {
+            "rank": 2,
+            "id": "chunk_4",
+            "score": 0.27382415533065796,
+            "text_preview": ""
+          },
+          {
+            "rank": 3,
+            "id": "chunk_2",
+            "score": 0.24571333800037728,
+            "text_preview": ""
+          },
+          {
+            "rank": 4,
+            "id": "chunk_5",
+            "score": 0.24154128083832746,
+            "text_preview": ""
+          },
+          {
+            "rank": 5,
+            "id": "chunk_7",
+            "score": 0.2160891423278536,
+            "text_preview": ""
+          }
+        ]
+      },
+      {
+        "query": "How much memory does Product Quantization save?",
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_4",
+            "score": 0.5101959413406814,
+            "text_preview": ""
+          },
+          {
+            "rank": 2,
+            "id": "chunk_3",
+            "score": 0.38131372705861516,
+            "text_preview": ""
+          },
+          {
+            "rank": 3,
+            "id": "chunk_5",
+            "score": 0.3624941244714396,
+            "text_preview": ""
+          },
+          {
+            "rank": 4,
+            "id": "chunk_2",
+            "score": 0.3026474479016589,
+            "text_preview": ""
+          },
+          {
+            "rank": 5,
+            "id": "chunk_7",
+            "score": 0.16447198861503406,
+            "text_preview": ""
+          }
+        ]
+      },
+      {
+        "query": "What is the recommended value for M in HNSW?",
+        "retrieved": [
+          {
+            "rank": 1,
+            "id": "chunk_2",
+            "score": 0.4016964078960662,
+            "text_preview": ""
+          },
+          {
+            "rank": 2,
+            "id": "chunk_7",
+            "score": 0.2610004401803279,
+            "text_preview": ""
+          },
+          {
+            "rank": 3,
+            "id": "chunk_1",
+            "score": 0.17885903590077376,
+            "text_preview": ""
+          },
+          {
+            "rank": 4,
+            "id": "chunk_5",
+            "score": 0.08583918725485726,
+            "text_preview": ""
+          },
+          {
+            "rank": 5,
+            "id": "chunk_4",
+            "score": 0.07191859930753708,
+            "text_preview": ""
+          }
+        ]
+      }
+    ]
+  }
+}
