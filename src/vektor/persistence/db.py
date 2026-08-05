@@ -87,13 +87,17 @@ def delete_collection(conn: sqlite3.Connection, name: str) -> None:
 # Vectors
 # ---------------------------------------------------------------------------
 
+import json
+
 def insert_vector_record(conn: sqlite3.Connection, id: str,
-                         collection: str, slot_id: int) -> None:
+                         collection: str, slot_id: int,
+                         metadata: Optional[dict] = None) -> None:
+    meta_json = json.dumps(metadata) if metadata else None
     with conn:
         conn.execute(
-            """INSERT INTO vectors (id, collection, slot_id, deleted, created_at)
-               VALUES (?, ?, ?, 0, ?)""",
-            (id, collection, slot_id, utcnow()),
+            """INSERT INTO vectors (id, collection, slot_id, metadata, deleted, created_at)
+               VALUES (?, ?, ?, ?, 0, ?)""",
+            (id, collection, slot_id, meta_json, utcnow()),
         )
 
 

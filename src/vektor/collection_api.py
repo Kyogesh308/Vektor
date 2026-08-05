@@ -251,7 +251,7 @@ class Collection:
         from vektor.persistence.binary import append_vector
         append_vector(self._collection_dir / "vector.bin", slot_id, validated_vector)
 
-        insert_vector_record(self._conn, id, self._name, slot_id)
+        insert_vector_record(self._conn, id, self._name, slot_id, metadata)
 
     def batch_insert(self, records: list[dict]) -> BatchInsertResult:
         """
@@ -372,7 +372,14 @@ class Collection:
                 continue
 
             import json
-            metadata = json.loads(row["metadata"]) if row["metadata"] else {}
+            metadata = {}
+            if row["metadata"]:
+                try:
+                    metadata = json.loads(row["metadata"])
+                except Exception:
+                    pass
+            if not metadata and hasattr(self, "_store") and self._store and row["id"] in self._store._metadata:
+                metadata = self._store._metadata[row["id"]].get("meta", {})
 
             from vektor.distance import METRIC_HIGHER_IS_BETTER
             display_score = -score if METRIC_HIGHER_IS_BETTER[self._metric] else score
