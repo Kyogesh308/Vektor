@@ -121,6 +121,13 @@ elif page == "Comparison Lab":
     )
     
     st.markdown("### 📥 1. Ingest Documents (Demo Layer)")
+    st.info(
+        "**Honest Framing & Scale:** Brute-force search cost grows linearly. "
+        "At a very small scale (e.g. fewer than 5,000 documents), the difference between brute-force exact search "
+        "and HNSW approximate search is often imperceptible to a human, and brute-force may even be faster due to "
+        "graph-traversal overhead. To see a visceral, human-perceptible speedup (e.g. 50x+), you need scale "
+        "(10,000+ to 1,000,000+ vectors). When testing below, keep the total collection size in mind!"
+    )
     
     text_input = st.text_area(
         "Paste text snippets (one per line):", 
