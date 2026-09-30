@@ -163,3 +163,64 @@ elif page == "Comparison Lab":
                 
             except Exception as e:
                 st.error(f"Error during ingestion: {e}")
+
+    st.markdown("---")
+    st.markdown("### 🔍 2. Query & Compare")
+    
+    if "compare_collection" in st.session_state:
+        query_text = st.text_input("Enter a search query:", placeholder="e.g. Find me a document about python...")
+        
+        col_k, col_ef = st.columns(2)
+        with col_k:
+            k_val = st.number_input("Top K results", min_value=1, max_value=20, value=3)
+        with col_ef:
+            ef_val = st.number_input("ef (HNSW Search parameter)", min_value=10, max_value=200, value=50)
+            
+        if st.button("Search & Compare", type="primary") and query_text:
+            try:
+                from vektor.api.models import SearchRequest
+                
+                embedder = st.session_state["compare_embedder"]
+                client = st.session_state["compare_client"]
+                col_name = st.session_state["compare_collection"]
+                
+                with st.spinner("Embedding query and executing comparison search..."):
+                    query_vec = embedder.embed_one(query_text)
+                    from vektor.api.routes.search import search_compare
+                    
+                    req = SearchRequest(query=query_vec.tolist(), k=k_val, ef=ef_val, include_vectors=False)
+                    compare_res = search_compare(name=col_name, req=req, client=client)
+                
+                # Render Metrics
+                st.markdown("#### 📊 Performance Metrics")
+                m1, m2, m3, m4 = st.columns(4)
+                m1.metric("Recall@K", f"{compare_res.recall_at_k:.1%}")
+                m2.metric("Brute-Force Latency", f"{compare_res.brute_force_latency_ms:.2f} ms")
+                m3.metric("HNSW Latency", f"{compare_res.hnsw_latency_ms:.2f} ms")
+                m4.metric("Speedup", f"{compare_res.speedup_ratio:.1f}x")
+                
+                st.markdown("#### 📄 Search Results")
+                res_col1, res_col2 = st.columns(2)
+                
+                with res_col1:
+                    st.markdown("##### Brute-Force (Exact / Ground Truth)")
+                    for r in compare_res.brute_force_results:
+                        with st.container(border=True):
+                            st.markdown(f"**ID:** `{r.id}`")
+                            st.markdown(f"**Score:** `{r.score:.4f}` | **Rank:** `#{r.rank}`")
+                            st.info(f"{r.metadata.get('text', 'No text found in metadata')}")
+                            
+                with res_col2:
+                    st.markdown("##### HNSW (Approximate)")
+                    if not compare_res.hnsw_results:
+                        st.warning("No results returned by HNSW.")
+                    for r in compare_res.hnsw_results:
+                        with st.container(border=True):
+                            st.markdown(f"**ID:** `{r.id}`")
+                            st.markdown(f"**Score:** `{r.score:.4f}` | **Rank:** `#{r.rank}`")
+                            st.info(f"{r.metadata.get('text', 'No text found in metadata')}")
+                            
+            except Exception as e:
+                st.error(f"Error during comparison search: {e}")
+    else:
+        st.info("Ingest some documents above to unlock the Query & Compare tool.")
