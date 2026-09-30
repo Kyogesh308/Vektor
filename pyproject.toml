@@ -14,6 +14,9 @@ dev = [
     "pytest>=8.0",
     "httpx2",
 ]
+demo = [
+    "sentence-transformers",
+]
 
 [project.scripts]
 vektor = "vektor.cli:main"

@@ -9,6 +9,10 @@ from __future__ import annotations
 import numpy as np
 
 
+class DemoDependencyMissingError(ImportError):
+    pass
+
+
 class Embedder:
     """
     Thin wrapper around sentence-transformers.
@@ -19,7 +23,14 @@ class Embedder:
     """
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
-        from sentence_transformers import SentenceTransformer
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError as e:
+            raise DemoDependencyMissingError(
+                "The 'sentence-transformers' package is required for the demo layer. "
+                "Please install the demo optional dependency group: `pip install vektor[demo]` or `pip install sentence-transformers`."
+            ) from e
+
         self._model = SentenceTransformer(model_name)
         if hasattr(self._model, "get_embedding_dimension"):
             self.dim = self._model.get_embedding_dimension()
