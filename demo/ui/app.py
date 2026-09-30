@@ -33,8 +33,48 @@ page = st.sidebar.radio("Go to", ["RAG Demo (Q&A)", "Comparison Lab"])
 st.sidebar.header("Settings")
 ollama_model = st.sidebar.text_input("Ollama Model", value="llama3:8b", help="Ollama model name at localhost:11434")
 
+def generate_ollama_answer(query: str, retrieved_chunks: list[str], model_name: str = "llama3:8b") -> str:
+    if not retrieved_chunks:
+        return "No relevant passages found in document."
+
+    context_str = "\n\n---\n\n".join([f"Passage {i+1}:\n{text}" for i, text in enumerate(retrieved_chunks)])
+    prompt = (
+        "You are an AI assistant answering questions about a document using only the provided passages.\n\n"
+        f"DOCUMENT PASSAGES:\n{context_str}\n\n"
+        f"QUESTION: {query}\n\n"
+        "Provide a clear, direct, and concise answer based strictly on the passages above. "
+        "If the passages do not contain the answer, state that the document does not explicitly state this information."
+    )
+
+    models_to_try = [model_name, "llama3:8b", "llama3", "llama3:latest"]
+    unique_models = []
+    for m in models_to_try:
+        if m not in unique_models:
+            unique_models.append(m)
+
+    for m in unique_models:
+        try:
+            res = requests.post(
+                "http://localhost:11434/api/generate",
+                json={"model": m, "prompt": prompt, "stream": False},
+                timeout=45
+            )
+            if res.status_code == 200:
+                answer = res.json().get("response", "").strip()
+                if answer:
+                    return f"**LLM Generated Answer** *(via Ollama model `{m}`)*:\n\n{answer}"
+        except Exception:
+            continue
+
+    return (
+        "⚠️ **Could not connect to Ollama at `http://localhost:11434`**\n\n"
+        "Please ensure Ollama is running (`ollama serve` or `ollama run llama3`) "
+        "and that the model is installed."
+    )
+
 if page == "RAG Demo (Q&A)":
     st.title("🦙 Vektor RAG — Semantic Document Q&A")
+
     st.markdown(
         "Upload any PDF document to chunk and index it into Vektor using dense vector embeddings. "
         "Ask queries to retrieve relevant passages and generate grounded answers using **Ollama (`llama3:8b`)**."
@@ -201,10 +241,18 @@ elif page == "Comparison Lab":
                 # Render Metrics
                 st.markdown("#### 📊 Performance Metrics")
                 m1, m2, m3, m4 = st.columns(4)
-                m1.metric("Recall@K", f"{compare_res.recall_at_k:.1%}")
-                m2.metric("Brute-Force Latency", f"{compare_res.brute_force_latency_ms:.2f} ms")
-                m3.metric("HNSW Latency", f"{compare_res.hnsw_latency_ms:.2f} ms")
-                m4.metric("Speedup", f"{compare_res.speedup_ratio:.1f}x")
+                m1.metric("Brute-Force Recall", "100.0%", help="Brute-Force is exact, so it always finds the perfect ground-truth nearest neighbors.")
+                m2.metric("HNSW Recall@K", f"{compare_res.recall_at_k:.1%}", help="HNSW trades a tiny fraction of accuracy for massive speedups.")
+                m3.metric("Brute-Force Latency", f"{compare_res.brute_force_latency_ms:.2f} ms")
+                m4.metric("HNSW Latency", f"{compare_res.hnsw_latency_ms:.2f} ms")
+                
+                # Second row of metrics for scaling insight
+                s1, s2, s3, s4 = st.columns(4)
+                total_docs = client.get_collection(col_name).count()
+                s1.metric("Speedup", f"{compare_res.speedup_ratio:.1f}x", help="How many times faster HNSW is than Brute-Force.")
+                s2.metric("Brute-Force Distances", f"{total_docs:,}", help="Brute-Force must calculate the distance to EVERY single vector in the database.")
+                s3.metric("HNSW Distances", f"~ {ef_val * 2}", help="HNSW only evaluates a tiny fraction of the database by navigating the graph.")
+                s4.metric("Total Collection Size", f"{total_docs:,} docs")
                 
                 st.markdown("#### 📄 Search Results")
                 res_col1, res_col2 = st.columns(2)
