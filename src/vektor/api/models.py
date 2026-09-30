@@ -110,6 +110,15 @@ class SearchResponse(BaseModel):
     metric: str
 
 
+class CompareResponse(BaseModel):
+    brute_force_results: list[SearchResultResponse]
+    hnsw_results: list[SearchResultResponse]
+    recall_at_k: float
+    brute_force_latency_ms: float
+    hnsw_latency_ms: float
+    speedup_ratio: float
+
+
 class BatchInsertResponse(BaseModel):
     inserted: int
     failed: int
