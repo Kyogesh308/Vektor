@@ -7,6 +7,7 @@ and generate grounded answers using Ollama (llama3:8b) at localhost:11434.
 Run: streamlit run demo/ui/app.py
 """
 
+import os
 import sys
 import tempfile
 import requests
@@ -20,57 +21,90 @@ if str(src_dir) not in sys.path:
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+# ---------------------------------------------------------------------------
+# Environment-aware configuration
+# In Docker: OLLAMA_HOST=http://ollama:11434, VEKTOR_DATA_DIR=/app/demo_vektor_data
+# Locally:   defaults to localhost
+# ---------------------------------------------------------------------------
+_OLLAMA_BASE = os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+_VEKTOR_DATA = os.environ.get("VEKTOR_DATA_DIR", "./demo_vektor_data")
+
 import streamlit as st
 
 from demo.build_index import build_index
 from demo.ingestion.embedder import Embedder
+from demo.llm import LLMConfig, generate_llm_answer
 
 st.set_page_config(page_title="Vektor RAG & Semantic Search", page_icon="🦙", layout="wide")
 
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ["RAG Demo (Q&A)", "Comparison Lab"])
 
-st.sidebar.header("Settings")
-ollama_model = st.sidebar.text_input("Ollama Model", value="llama3:8b", help="Ollama model name at localhost:11434")
+st.sidebar.header("🤖 LLM Settings")
 
-def generate_ollama_answer(query: str, retrieved_chunks: list[str], model_name: str = "llama3:8b") -> str:
-    if not retrieved_chunks:
-        return "No relevant passages found in document."
+provider_options = [
+    "Auto (Ollama + Cloud Fallback)",
+    "Ollama (Local / Container)",
+    "Groq (Cloud Llama 3 / Mixtral)",
+    "OpenAI (GPT-4o, etc.)",
+    "Anthropic (Claude)",
+    "Google Gemini",
+]
+selected_provider_label = st.sidebar.selectbox("LLM Provider", provider_options, index=0)
 
-    context_str = "\n\n---\n\n".join([f"Passage {i+1}:\n{text}" for i, text in enumerate(retrieved_chunks)])
-    prompt = (
-        "You are an AI assistant answering questions about a document using only the provided passages.\n\n"
-        f"DOCUMENT PASSAGES:\n{context_str}\n\n"
-        f"QUESTION: {query}\n\n"
-        "Provide a clear, direct, and concise answer based strictly on the passages above. "
-        "If the passages do not contain the answer, state that the document does not explicitly state this information."
+provider_mapping = {
+    "Auto (Ollama + Cloud Fallback)": "auto",
+    "Ollama (Local / Container)": "ollama",
+    "Groq (Cloud Llama 3 / Mixtral)": "groq",
+    "OpenAI (GPT-4o, etc.)": "openai",
+    "Anthropic (Claude)": "anthropic",
+    "Google Gemini": "gemini",
+}
+chosen_provider = provider_mapping[selected_provider_label]
+
+# Default model per provider
+default_models = {
+    "auto": "llama3:8b",
+    "ollama": "llama3:8b",
+    "groq": "llama-3.3-70b-versatile",
+    "openai": "gpt-4o-mini",
+    "anthropic": "claude-3-5-sonnet-20241022",
+    "gemini": "gemini-1.5-flash",
+}
+
+llm_model = st.sidebar.text_input(
+    "Model Name",
+    value=default_models[chosen_provider],
+    help="Model identifier to use with the selected provider."
+)
+
+# API Key input (shown for cloud providers or auto)
+api_key_env_defaults = {
+    "openai": os.environ.get("OPENAI_API_KEY", ""),
+    "groq": os.environ.get("GROQ_API_KEY", ""),
+    "anthropic": os.environ.get("ANTHROPIC_API_KEY", ""),
+    "gemini": os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY", ""),
+    "auto": os.environ.get("GROQ_API_KEY") or os.environ.get("OPENAI_API_KEY", ""),
+    "ollama": "",
+}
+default_key = api_key_env_defaults.get(chosen_provider, "")
+
+llm_api_key = ""
+if chosen_provider != "ollama":
+    llm_api_key = st.sidebar.text_input(
+        "API Key (Optional if env var set)",
+        value=default_key,
+        type="password",
+        help="Paste your API key here, or set it via environment variable (.env / Docker)."
     )
 
-    models_to_try = [model_name, "llama3:8b", "llama3", "llama3:latest"]
-    unique_models = []
-    for m in models_to_try:
-        if m not in unique_models:
-            unique_models.append(m)
-
-    for m in unique_models:
-        try:
-            res = requests.post(
-                "http://localhost:11434/api/generate",
-                json={"model": m, "prompt": prompt, "stream": False},
-                timeout=45
-            )
-            if res.status_code == 200:
-                answer = res.json().get("response", "").strip()
-                if answer:
-                    return f"**LLM Generated Answer** *(via Ollama model `{m}`)*:\n\n{answer}"
-        except Exception:
-            continue
-
-    return (
-        "⚠️ **Could not connect to Ollama at `http://localhost:11434`**\n\n"
-        "Please ensure Ollama is running (`ollama serve` or `ollama run llama3`) "
-        "and that the model is installed."
+with st.sidebar.expander("⚙️ Advanced LLM Settings"):
+    custom_base_url = st.text_input(
+        "Custom Base URL",
+        value=_OLLAMA_BASE if chosen_provider in ("ollama", "auto") else "",
+        help="Custom endpoint URL (e.g. for Ollama container, vLLM, or OpenRouter)"
     )
+    llm_temperature = st.slider("Temperature", 0.0, 1.0, 0.2, 0.05)
 
 if page == "RAG Demo (Q&A)":
     st.title("🦙 Vektor RAG — Semantic Document Q&A")
@@ -132,9 +166,23 @@ if page == "RAG Demo (Q&A)":
                 retrieved_texts = [r.metadata.get("text", "") for r in results if r.metadata.get("text", "")]
 
                 st.markdown("---")
-                with st.spinner(f"Generating answer with Ollama (`{ollama_model}`)..."):
-                    ollama_answer = generate_ollama_answer(query, retrieved_texts, ollama_model)
-                    st.markdown(ollama_answer)
+                llm_cfg = LLMConfig(
+                    provider=chosen_provider,
+                    model=llm_model,
+                    api_key=llm_api_key.strip() or None,
+                    base_url=custom_base_url.strip() or None,
+                    temperature=llm_temperature,
+                )
+                with st.spinner(f"Generating grounded answer using {selected_provider_label} ({llm_model})..."):
+                    resp = generate_llm_answer(query, retrieved_texts, llm_cfg)
+                    if resp.success:
+                        st.markdown(
+                            f"**LLM Generated Answer** "
+                            f"*(via `{resp.provider}` | `{resp.model}` | `{resp.latency_ms:.0f}ms`)*:\n\n"
+                            f"{resp.text}"
+                        )
+                    else:
+                        st.warning(resp.text)
 
                 st.markdown("---")
                 st.markdown(f"#### 📚 Top {len(results)} Retrieved Passages from Vektor")
@@ -194,7 +242,7 @@ elif page == "Comparison Lab":
                 
                 with st.spinner("Connecting to Vektor..."):
                     if "compare_client" not in st.session_state:
-                        st.session_state["compare_client"] = Vektor(VektorConfig(data_dir="./demo_vektor_data"))
+                        st.session_state["compare_client"] = Vektor(VektorConfig(data_dir=_VEKTOR_DATA))
                     client = st.session_state["compare_client"]
                     
                     if collection_name not in client.list_collections():

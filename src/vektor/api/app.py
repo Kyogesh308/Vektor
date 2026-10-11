@@ -6,6 +6,7 @@ FastAPI application factory with lifespan management.
 
 from __future__ import annotations
 
+import os
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -18,7 +19,9 @@ from vektor.api.exceptions import register_exception_handlers
 from vektor.api.routes import collections, vectors, search, health
 
 
-def create_app(data_dir: str = "./vektor_data") -> FastAPI:
+def create_app(data_dir: str | None = None) -> FastAPI:
+    # Prefer env var (set to /data in Docker), then argument, then default
+    data_dir = data_dir or os.environ.get("VEKTOR_DATA_DIR", "./vektor_data")
     """
     Application factory. Called by the CLI and by tests (with a temp data_dir).
 
@@ -45,7 +48,16 @@ def create_app(data_dir: str = "./vektor_data") -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origins=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            # Streamlit UI origins (local and Docker)
+            "http://localhost:8501",
+            "http://127.0.0.1:8501",
+            "http://vektor-ui:8501",
+            # Allow all — safe behind Docker bridge; tighten for prod
+            "*",
+        ],
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -61,4 +73,5 @@ def create_app(data_dir: str = "./vektor_data") -> FastAPI:
 
 
 # Default app instance for `uvicorn vektor.api.app:app`
+# data_dir is resolved from VEKTOR_DATA_DIR env var inside create_app()
 app = create_app()

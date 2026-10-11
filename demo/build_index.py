@@ -4,6 +4,7 @@ demo/build_index.py
 End-to-end: PDF -> chunks -> vectors -> Vektor collection.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -29,7 +30,8 @@ def build_index(pdf_path: str, collection_name: str = "demo_doc") -> None:
     embedder = Embedder()
     vectors = embedder.embed([c.text for c in chunks])
 
-    client = Vektor(VektorConfig(data_dir="./demo_vektor_data"))
+    data_dir = os.environ.get("VEKTOR_DATA_DIR", "./demo_vektor_data")
+    client = Vektor(VektorConfig(data_dir=data_dir))
 
     # Recreate cleanly each run for demo purposes
     if collection_name in client.list_collections():

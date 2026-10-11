@@ -8,13 +8,14 @@ Usage:
   python demo/load_dataset.py --dataset ag_news --count 10000 --collection demo_compare
 """
 
+import os
 import argparse
 from datasets import load_dataset
 from vektor import Vektor, VektorConfig
 from demo.ingestion.pipeline import ingest_documents
 from demo.ingestion.embedder import Embedder
 
-def load_data(dataset_name: str, count: int, collection_name: str, batch_size: int = 1000):
+def load_data(dataset_name: str, count: int, collection_name: str, batch_size: int = 1000, data_dir: str | None = None):
     print(f"Loading {count} examples from {dataset_name}...")
     
     # Load dataset
@@ -34,7 +35,8 @@ def load_data(dataset_name: str, count: int, collection_name: str, batch_size: i
             texts.append(str(list(item.values())[0]))
             
     print(f"Initializing Vektor and Embedder...")
-    client = Vektor(VektorConfig(data_dir="./demo_vektor_data"))
+    resolved_data_dir = data_dir or os.environ.get("VEKTOR_DATA_DIR", "./demo_vektor_data")
+    client = Vektor(VektorConfig(data_dir=resolved_data_dir))
     embedder = Embedder()
     
     if collection_name not in client.list_collections():
@@ -62,6 +64,7 @@ if __name__ == "__main__":
     parser.add_argument("--count", type=int, default=10000, help="Number of documents to load")
     parser.add_argument("--collection", type=str, default="demo_compare", help="Vektor collection name")
     parser.add_argument("--batch_size", type=int, default=1000, help="Batch size for embeddings")
+    parser.add_argument("--data-dir", type=str, default=None, help="Vektor data directory (defaults to VEKTOR_DATA_DIR or ./demo_vektor_data)")
     
     args = parser.parse_args()
-    load_data(args.dataset, args.count, args.collection, args.batch_size)
+    load_data(args.dataset, args.count, args.collection, args.batch_size, args.data_dir)
