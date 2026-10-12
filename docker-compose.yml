@@ -1,0 +1,142 @@
+# =============================================================================
+# docker-compose.yml — Vektor Full-Stack Deployment
+# =============================================================================
+# Services:
+#   vektor-api  — FastAPI backend  (port 8000)
+#   vektor-ui   — Streamlit demo   (port 8501)
+#   ollama      — LLM inference    (port 11434)  [optional, for RAG Q&A feature]
+#
+# Usage:
+#   # Start everything (including Ollama)
+#   docker compose up --build
+#
+#   # Start without Ollama (pure vector search demo only)
+#   docker compose up --build vektor-api vektor-ui
+#
+#   # Pull the LLM model after first boot:
+#   docker compose exec ollama ollama pull llama3:8b
+# =============================================================================
+
+version: "3.9"
+
+# ---------------------------------------------------------------------------
+# Named volumes — survive container restarts, satisfy requirement #3
+# ---------------------------------------------------------------------------
+volumes:
+  vektor_data:
+    driver: local
+  ollama_data:
+    driver: local
+  demo_vektor_data:
+    driver: local
+
+# ---------------------------------------------------------------------------
+# Services
+# ---------------------------------------------------------------------------
+services:
+
+  # --------------------------------------------------------------------------
+  # vektor-api: The core vector database REST API
+  # --------------------------------------------------------------------------
+  vektor-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: vektor-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Named volume for production/persistent index data
+      - vektor_data:/data
+    environment:
+      - VEKTOR_DATA_DIR=/data
+      - PYTHONUNBUFFERED=1
+    command: >
+      python -m uvicorn vektor.api.app:app
+      --host 0.0.0.0
+      --port 8000
+      --log-level info
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    networks:
+      - vektor-net
+
+  # --------------------------------------------------------------------------
+  # vektor-ui: Streamlit demo frontend
+  # --------------------------------------------------------------------------
+  vektor-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    container_name: vektor-ui
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    volumes:
+      # Persistent volume for demo data created via the UI
+      - demo_vektor_data:/app/demo_vektor_data
+      # Mount core vector storage as well for enterprise dataset querying
+      - vektor_data:/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      # Tell the UI where the Vektor API lives inside the Docker network
+      - VEKTOR_API_URL=http://vektor-api:8000
+      # Tell the UI where Ollama lives inside the Docker network
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
+      # Cloud LLM API Keys (optional — passed through from host environment or .env)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    depends_on:
+      vektor-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 90s
+      retries: 3
+    networks:
+      - vektor-net
+
+  # --------------------------------------------------------------------------
+  # ollama: Local LLM inference (required for RAG Q&A page)
+  # Pull your model after first start:  docker compose exec ollama ollama pull llama3:8b
+  # --------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: vektor-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # GPU support (comment out if no GPU available — CPU inference still works)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - vektor-net
+    profiles:
+      # Only start ollama when the "llm" profile is requested:
+      #   docker compose --profile llm up --build
+      # Without --profile llm the RAG Q&A page shows a graceful warning.
+      - llm
+
+# ---------------------------------------------------------------------------
+# Shared bridge network
+# ---------------------------------------------------------------------------
+networks:
+  vektor-net:
+    driver: bridge

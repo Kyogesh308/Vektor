@@ -1,0 +1,21 @@
+# =============================================================================
+# requirements.txt — Pinned runtime dependencies for Docker reproducibility
+# Generated from pyproject.toml + demo extras + UI stack
+# =============================================================================
+
+# Core vector database
+numpy>=1.26
+h5py>=3.9
+fastapi[standard]>=0.115
+uvicorn[standard]>=0.29
+
+# Demo / RAG layer
+sentence-transformers>=2.7
+datasets>=2.18
+pypdf>=4.0
+
+# Frontend
+streamlit>=1.35
+
+# Utilities
+requests>=2.31

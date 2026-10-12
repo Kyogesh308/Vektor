@@ -1,0 +1,59 @@
+# =============================================================================
+# .dockerignore — Keep images lean and builds fast
+# =============================================================================
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Git
+.git/
+.github/
+.gitignore
+
+# Test / dev tooling
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+benchmarks/
+bench.py
+debug_test.py
+generate_data.py
+build.prof
+
+# Local data directories (volumes handle persistence)
+vektor_data/
+demo_vektor_data/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Python version file (we pin in Dockerfile)
+.python-version
+
+# Large binary data — not needed in image
+large_dummy_corpus.txt
+*.hdf5
+*.h5
+
+# Docs (not needed at runtime)
+docs/
+
+# Scripts (not needed at runtime)
+scripts/
